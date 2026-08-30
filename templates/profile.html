@@ -1,1 +1,22 @@
-
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <title>الملف الشخصي</title>
+</head>
+<body style="font-family: Tahoma; background: #ecf0f1; padding: 20px;">
+    {% if message %}
+    <p style="color: green;">{{ message }}</p>
+    {% endif %}
+    <h1>الملف الشخصي</h1>
+    <p>اسم المستخدم: {{ user.username }}</p>
+    <p>البريد الإلكتروني: {{ user.email }}</p>
+    <p>الدور: {{ user.role }}</p>
+    
+    <h2>تحديث البريد</h2>
+    <form method="POST">
+        <input type="email" name="email" placeholder="البريد الجديد" value="{{ user.email }}" style="width: 100%; padding: 10px;">
+        <button>تحديث</button>
+    </form>
+</body>
+</html>
