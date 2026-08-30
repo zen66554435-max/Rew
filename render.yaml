@@ -3,7 +3,9 @@ services:
     name: image-gallery-ctf
     env: python
     buildCommand: "pip install -r requirements.txt"
-    startCommand: "gunicorn app:app --workers 2 --timeout 120"
+    startCommand: "gunicorn app:app --workers 2 --timeout 120 --bind 0.0.0.0:$PORT"
     envVars:
       - key: SECRET_KEY
-        value: "change_this_in_production"
+        value: "sup3r_s3cr3t_k3y_chang3_m3"
+      - key: PYTHON_VERSION
+        value: "3.11.0"
