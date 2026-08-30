@@ -1,6 +1,9 @@
 services:
   - type: web
-    name: ctf-training-lab
+    name: image-gallery-ctf
     env: python
     buildCommand: "pip install -r requirements.txt"
-    startCommand: "gunicorn app:app"
+    startCommand: "gunicorn app:app --workers 2 --timeout 120"
+    envVars:
+      - key: SECRET_KEY
+        value: "change_this_in_production"
