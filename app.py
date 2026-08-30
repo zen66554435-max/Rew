@@ -18,8 +18,9 @@ def init_db():
     if os.path.exists(DB_PATH):
         try:
             test_conn = sqlite3.connect(DB_PATH)
-            test_conn.execute("SELECT 1")
+            test_conn.execute("SELECT * FROM galleries LIMIT 1")
             test_conn.close()
+            return
         except:
             os.remove(DB_PATH)
     
@@ -55,8 +56,14 @@ def init_db():
         conn.execute("INSERT INTO users (username, password, email, role) VALUES ('sara', ?, 'sara@site.local', 'user')",
                     (hashlib.md5('sara2024'.encode()).hexdigest(),))
     
+    # إضافة صورة افتراضية
+    conn.execute("INSERT INTO galleries (user_id, image_path, caption) VALUES (1, 'static/uploads/default.jpg', 'صورة ترحيبية')")
+    
     conn.commit()
     conn.close()
+
+# استدعاء مباشر عند تحميل الملف
+init_db()
 
 @app.route('/')
 def home():
