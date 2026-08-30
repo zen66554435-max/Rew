@@ -15,7 +15,6 @@ def get_db():
     return conn
 
 def init_db():
-    # حذف قاعدة البيانات القديمة إذا كانت تالفة
     if os.path.exists(DB_PATH):
         try:
             test_conn = sqlite3.connect(DB_PATH)
@@ -88,6 +87,7 @@ def home():
             <a href="/login">تسجيل دخول</a>
             <a href="/debug">Debug</a>
             <a href="/api/users">API Users</a>
+            <a href="/backup">Backup</a>
         </nav>
         <h1>معرض الصور</h1>
         <div class="grid">
@@ -157,7 +157,6 @@ def login():
         username = request.form.get('username', '')
         password = request.form.get('password', '')
         md5_pass = hashlib.md5(password.encode()).hexdigest()
-        # SQL Injection عمداً
         query = f"SELECT * FROM users WHERE username='{username}' AND password='{md5_pass}'"
         try:
             conn = get_db()
@@ -249,14 +248,10 @@ def upload():
     </html>
     ''')
 
-@app.route('/debug')
-def debug():
-    return jsonify({
-        "secret_key": app.secret_key,
-        "upload_folder": UPLOAD_FOLDER,
-        "python_version": "3.11",
-        "flag": "FLAG{S3CR3T_K3Y_F0UND}"
-    })
+@app.route('/api/search')
+def api_search():
+    q = request.args.get('q', '')
+    return jsonify({"query": q, "results": "لا توجد نتائج", "raw": q})
 
 @app.route('/api/user/<int:id>')
 def api_user(id):
@@ -273,6 +268,15 @@ def api_users():
     users = conn.execute("SELECT id, username, email, role FROM users").fetchall()
     conn.close()
     return jsonify([dict(u) for u in users])
+
+@app.route('/debug')
+def debug():
+    return jsonify({
+        "secret_key": app.secret_key,
+        "upload_folder": UPLOAD_FOLDER,
+        "python_version": "3.11",
+        "flag": "FLAG{S3CR3T_K3Y_F0UND}"
+    })
 
 @app.route('/backup')
 def backup():
