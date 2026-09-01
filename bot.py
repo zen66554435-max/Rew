@@ -1,530 +1,476 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+#!/bin/bash
+# ============================================
+# DMAR - أداة فحص الروابط والمواقع
+# الإصدار: 2.0
+# المطور: The Ghost
+# متوافقة مع: Linux / Termux / iSH
+# ============================================
 
-import itertools
-import string
-import os
-import time
-import threading
-import requests
-import sys
-from pathlib import Path
+# ============ الألوان ============
+R='\033[0;31m'
+G='\033[0;32m'
+Y='\033[0;33m'
+B='\033[0;34m'
+P='\033[0;35m'
+C='\033[0;36m'
+W='\033[0;37m'
+NC='\033[0m'
+BOLD='\033[1m'
 
-# ============ الألوان والأنماط ============
-GREEN = '\033[0;32m'
-YELLOW = '\033[1;33m'
-RED = '\033[0;31m'
-CYAN = '\033[0;36m'
-WHITE = '\033[1;37m'
-MAGENTA = '\033[0;35m'
-NC = '\033[0m'
-BOLD = '\033[1m'
+# ============ المتغيرات ============
+VERSION="2.0"
+TARGET_URL=""
+TIMEOUT=10
+USER_AGENT="Mozilla/5.0 (Linux; Android 12; DMAR Scanner) AppleWebKit/537.36"
 
-# ============ متغيرات عامة ============
-stop_flag = False
-counter = 0
-start_time = 0
-generating = False
+# ============ دالة البانر ============
+show_banner() {
+    clear
+    echo -e "${R}${BOLD}"
+    echo "╔══════════════════════════════════════════════════╗"
+    echo "║                                                  ║"
+    echo "║        ██████╗ ███╗   ███╗ █████╗ ██████╗        ║"
+    echo "║        ██╔══██╗████╗ ████║██╔══██╗██╔══██╗       ║"
+    echo "║        ██║  ██║██╔████╔██║███████║██████╔╝       ║"
+    echo "║        ██║  ██║██║╚██╔╝██║██╔══██║██╔══██╗       ║"
+    echo "║        ██████╔╝██║ ╚═╝ ██║██║  ██║██║  ██║       ║"
+    echo "║        ╚═════╝ ╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝       ║"
+    echo "║                                                  ║"
+    echo "╠══════════════════════════════════════════════════╣"
+    echo "║     أداة فحص الروابط والمواقع المتكاملة           ║"
+    echo "║     الإصدار: ${VERSION}                              ║"
+    echo "║     المطور: The Ghost                             ║"
+    echo "║     المنصة: Linux / Termux / iSH                  ║"
+    echo "╚══════════════════════════════════════════════════╝"
+    echo -e "${NC}"
+}
 
-def clear_screen():
-    """تنظيف الشاشة"""
-    os.system('clear' if os.name != 'nt' else 'cls')
-
-def print_banner():
-    """طباعة البانر الرئيسي"""
-    print(f"""{MAGENTA}{BOLD}
-╔═══════════════════════════════════════════════════╗
-║                                                   ║
-║   🔐 DMARFOT Wordlist Generator v4.0 PRO 🚀      ║
-║                                                   ║
-║   توليد كلمات مرور فائقة السرعة مع البوت         ║
-║                                                   ║
-╚═══════════════════════════════════════════════════╝
-{NC}""")
-
-def print_section_header(title, num):
-    """طباعة رؤوس الأقسام"""
-    print(f"\n{BOLD}{MAGENTA}[{num}]{NC} {BOLD}{CYAN}{title}{NC}")
-    print(f"{MAGENTA}{'─' * 50}{NC}\n")
-
-def divider():
-    """خط فاصل"""
-    print(f"{MAGENTA}{'═' * 50}{NC}")
-
-def success(msg):
-    """رسالة نجاح"""
-    print(f"{GREEN}✅ {msg}{NC}")
-
-def error(msg):
-    """رسالة خطأ"""
-    print(f"{RED}❌ {msg}{NC}")
-
-def warning(msg):
-    """رسالة تحذير"""
-    print(f"{YELLOW}⚠️  {msg}{NC}")
-
-def info(msg):
-    """معلومة"""
-    print(f"{CYAN}ℹ️  {msg}{NC}")
-
-# ============ المدخلات ============
-def get_bot_config():
-    """الحصول على إعدادات البوت"""
-    clear_screen()
-    print_banner()
-    print_section_header("إعدادات البوت", "1/4")
+# ============ دالة التثبيت التلقائي ============
+install_deps() {
+    echo -e "${Y}[+] جاري فحص وتثبيت المتطلبات...${NC}"
     
-    BOT_TOKEN = input(f"{WHITE}🤖 أدخل توكن البوت: {NC}").strip()
-    if not BOT_TOKEN:
-        error("التوكن مطلوب!")
-        return None, None
+    # التحقق من curl
+    if ! command -v curl > /dev/null 2>&1; then
+        echo -e "${Y}[!] تثبيت curl...${NC}"
+        if command -v apt > /dev/null 2>&1; then
+            apt install -y curl > /dev/null 2>&1
+        elif command -v pkg > /dev/null 2>&1; then
+            pkg install -y curl > /dev/null 2>&1
+        elif command -v apk > /dev/null 2>&1; then
+            apk add curl > /dev/null 2>&1
+        elif command -v yum > /dev/null 2>&1; then
+            yum install -y curl > /dev/null 2>&1
+        elif command -v dnf > /dev/null 2>&1; then
+            dnf install -y curl > /dev/null 2>&1
+        fi
+    fi
     
-    CHAT_ID = input(f"{WHITE}💬 أدخل Chat ID (اترك فارغاً للتلقائي): {NC}").strip()
+    # التحقق من dig
+    if ! command -v dig > /dev/null 2>&1; then
+        echo -e "${Y}[!] تثبيت dnsutils...${NC}"
+        if command -v apt > /dev/null 2>&1; then
+            apt install -y dnsutils > /dev/null 2>&1
+        elif command -v pkg > /dev/null 2>&1; then
+            pkg install -y dnsutils > /dev/null 2>&1
+        elif command -v apk > /dev/null 2>&1; then
+            apk add bind-tools > /dev/null 2>&1
+        fi
+    fi
     
-    clear_screen()
-    return BOT_TOKEN, CHAT_ID
+    # التحقق من whois
+    if ! command -v whois > /dev/null 2>&1; then
+        echo -e "${Y}[!] تثبيت whois...${NC}"
+        if command -v apt > /dev/null 2>&1; then
+            apt install -y whois > /dev/null 2>&1
+        elif command -v pkg > /dev/null 2>&1; then
+            pkg install -y whois > /dev/null 2>&1
+        fi
+    fi
+    
+    echo -e "${G}[✓] اكتمل فحص المتطلبات${NC}"
+    echo ""
+}
 
-def get_password_settings():
-    """الحصول على إعدادات كلمة المرور"""
-    print_banner()
-    print_section_header("إعدادات التوليد", "2/4")
+# ============ دالة إدخال الرابط ============
+get_url() {
+    echo -e "${Y}[?] أدخل الرابط أو الموقع المراد فحصه:${NC}"
+    echo -e "${W}مثال: example.com${NC}"
+    echo ""
+    printf "${C}❯ ${NC}"
+    read TARGET_URL
     
-    # طول كلمة المرور
-    while True:
-        try:
-            pwd_length = int(input(f"{WHITE}📏 طول كلمة المرور (1-15): {NC}").strip())
-            if 1 <= pwd_length <= 15:
-                break
-            error(f"الطول يجب أن يكون بين 1 و 15")
-        except ValueError:
-            error("أدخل رقماً صحيحاً")
+    # تنظيف الرابط
+    TARGET_URL=$(echo "$TARGET_URL" | sed 's|^https\?://||' | sed 's|^www\.||' | sed 's|/$||')
     
-    clear_screen()
-    print_banner()
-    print_section_header("اختر نوع الحروف", "2/4")
+    if [ -z "$TARGET_URL" ]; then
+        echo -e "${R}[!] خطأ: الرابط فارغ${NC}"
+        sleep 1
+        get_url
+    fi
+    echo ""
+}
+
+# ============ دالة فحص DNS ============
+check_dns() {
+    echo -e "${B}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${C}${BOLD}  [1] فحص سجلات DNS${NC}"
+    echo -e "${B}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
     
-    # اختيار الحروف
-    options = {
-        "1": (string.digits, "أرقام فقط (0-9)"),
-        "2": (string.ascii_lowercase, "أحرف صغيرة (a-z)"),
-        "3": (string.ascii_uppercase, "أحرف كبيرة (A-Z)"),
-        "4": (string.ascii_lowercase + string.digits, "أحرف صغيرة + أرقام"),
-        "5": (string.ascii_uppercase + string.digits, "أحرف كبيرة + أرقام"),
-        "6": (string.ascii_lowercase + string.ascii_uppercase, "أحرف صغيرة + كبيرة"),
-        "7": (string.ascii_lowercase + string.ascii_uppercase + string.digits, "أحرف + أرقام (كامل)"),
-        "8": (string.ascii_lowercase + string.ascii_uppercase + string.digits + "!@#$%^&*", "أحرف + أرقام + رموز"),
-        "9": ("custom", "حروف مخصصة"),
-    }
-    
-    print(f"{CYAN}اختر من القائمة:{NC}")
-    for key, (_, desc) in options.items():
-        print(f"  {key}) {desc}")
-    
-    while True:
-        choice = input(f"\n{WHITE}اختيارك: {NC}").strip()
+    if command -v dig > /dev/null 2>&1; then
+        echo -e "${Y}[→] سجلات A (IPv4):${NC}"
+        dig +short A "$TARGET_URL" 2>/dev/null | grep -E '^[0-9]' | while read line; do
+            echo -e "   ${G}└─ ${W}$line${NC}"
+        done
+        echo ""
         
-        if choice == "9":
-            charset = input(f"{WHITE}أدخل الحروف المخصصة: {NC}").strip()
-            charset_name = f"مخصص: {charset}"
-            if not charset:
-                error("يجب إدخال حروف")
-                continue
-            break
-        elif choice in options:
-            charset, charset_name = options[choice]
-            break
-        else:
-            error("خيار غير صحيح")
-    
-    clear_screen()
-    return pwd_length, charset, charset_name
-
-def get_limit_settings(total_possible):
-    """الحصول على حد أقصى للكلمات"""
-    print_banner()
-    print_section_header("حد أقصى لعدد الكلمات", "3/4")
-    
-    est_size = total_possible * 12 / (1024 * 1024)
-    info(f"الحجم المتوقع (بدون حد): {est_size:.2f} MB")
-    info(f"عدد الكلمات المحتملة: {total_possible:,}")
-    
-    print(f"\n{CYAN}اختر الحد الأقصى:{NC}")
-    print("  1) 10 مليون")
-    print("  2) 100 مليون")
-    print("  3) 500 مليون")
-    print("  4) 1 مليار")
-    print("  5) بدون حد (استخدم كل الاحتمالات)")
-    print("  6) عدد مخصص")
-    
-    limits = {
-        "1": 10_000_000,
-        "2": 100_000_000,
-        "3": 500_000_000,
-        "4": 1_000_000_000,
-        "5": total_possible,
-    }
-    
-    while True:
-        choice = input(f"\n{WHITE}اختيارك: {NC}").strip()
+        echo -e "${Y}[→] سجلات NS:${NC}"
+        dig +short NS "$TARGET_URL" 2>/dev/null | grep -v '^$' | while read line; do
+            echo -e "   ${G}└─ ${W}$line${NC}"
+        done
+        echo ""
         
-        if choice in limits:
-            max_words = min(limits[choice], total_possible)
-            break
-        elif choice == "6":
-            try:
-                max_words = int(input(f"{WHITE}أدخل العدد: {NC}").strip())
-                if max_words > 0 and max_words <= total_possible:
-                    break
-                error(f"الرقم يجب أن يكون بين 1 و {total_possible:,}")
-            except ValueError:
-                error("أدخل رقماً صحيحاً")
-        else:
-            error("خيار غير صحيح")
-    
-    clear_screen()
-    return max_words
+        echo -e "${Y}[→] سجلات MX:${NC}"
+        dig +short MX "$TARGET_URL" 2>/dev/null | grep -v '^$' | while read line; do
+            echo -e "   ${G}└─ ${W}$line${NC}"
+        done
+        echo ""
+    else
+        # استخدام nslookup كبديل
+        echo -e "${Y}[→] استخدام nslookup:${NC}"
+        nslookup "$TARGET_URL" 2>/dev/null | grep -A5 "Name:" | while read line; do
+            echo -e "   ${G}└─ ${W}$line${NC}"
+        done
+        echo ""
+    fi
+}
 
-def get_split_settings():
-    """الحصول على إعدادات التقسيم"""
-    print_banner()
-    print_section_header("تقسيم الملف", "3/4")
+# ============ دالة فحص HTTP ============
+check_http() {
+    echo -e "${B}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${C}${BOLD}  [2] فحص HTTP/HTTPS${NC}"
+    echo -e "${B}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
     
-    split_choice = input(f"{WHITE}هل تريد تقسيم الملف؟ (y/n): {NC}").strip().lower()
-    
-    if split_choice == 'y':
-        while True:
-            try:
-                split_size = int(input(f"{WHITE}حجم كل جزء (MB): {NC}").strip())
-                if split_size > 0:
-                    break
-                error("الحجم يجب أن يكون أكبر من 0")
-            except ValueError:
-                error("أدخل رقماً صحيحاً")
-    else:
-        split_size = 0
-    
-    clear_screen()
-    return split_size
-
-def show_summary(bot_token, chat_id, pwd_length, charset_name, total, max_words, split_size):
-    """عرض ملخص الإعدادات"""
-    print_banner()
-    print_section_header("ملخص الإعدادات", "4/4")
-    
-    divider()
-    print(f"{BOLD}{GREEN}البوت والمحادثة:{NC}")
-    print(f"  🤖 التوكن: {BOLD}{bot_token[:20]}...{NC}")
-    if chat_id:
-        print(f"  💬 Chat ID: {BOLD}{chat_id}{NC}")
-    else:
-        print(f"  💬 Chat ID: {YELLOW}سيتم الحصول عليه تلقائياً{NC}")
-    
-    print(f"\n{BOLD}{GREEN}إعدادات التوليد:{NC}")
-    print(f"  📏 الطول: {BOLD}{pwd_length}{NC}")
-    print(f"  🔤 الحروف: {BOLD}{charset_name}{NC}")
-    print(f"  📊 الكلمات المتاحة: {BOLD}{total:,}{NC}")
-    print(f"  📊 الكلمات المطلوبة: {BOLD}{max_words:,}{NC}")
-    
-    if split_size:
-        print(f"\n{BOLD}{GREEN}التقسيم:{NC}")
-        print(f"  📦 حجم كل جزء: {BOLD}{split_size} MB{NC}")
-    
-    divider()
-
-# ============ دوال البوت ============
-BASE_URL = None
-
-def init_bot(token):
-    """تهيئة البوت"""
-    global BASE_URL
-    BASE_URL = f"https://api.telegram.org/bot{token}"
-
-def send_message(chat_id, text):
-    """إرسال رسالة"""
-    try:
-        r = requests.post(
-            f"{BASE_URL}/sendMessage",
-            json={"chat_id": chat_id, "text": text, "parse_mode": "HTML"},
-            timeout=10
-        )
-        return r.json()
-    except:
-        return None
-
-def send_file(chat_id, file_path, caption=""):
-    """إرسال ملف"""
-    try:
-        with open(file_path, "rb") as f:
-            r = requests.post(
-                f"{BASE_URL}/sendDocument",
-                data={"chat_id": chat_id, "caption": caption},
-                files={"document": f},
-                timeout=120
-            )
-        return r.json()
-    except Exception as e:
-        return None
-
-def get_updates(offset=None):
-    """الحصول على التحديثات"""
-    try:
-        url = f"{BASE_URL}/getUpdates"
-        if offset:
-            url += f"?offset={offset}"
-        r = requests.get(url, timeout=15)
-        return r.json()
-    except:
-        return None
-
-def get_me():
-    """التحقق من البوت"""
-    try:
-        r = requests.get(f"{BASE_URL}/getMe", timeout=10)
-        return r.json()
-    except:
-        return None
-
-def get_chat_id():
-    """الحصول على Chat ID"""
-    updates = get_updates()
-    if updates and updates.get("ok") and updates.get("result"):
-        for update in reversed(updates["result"]):
-            if "message" in update:
-                return update["message"]["chat"]["id"]
-            elif "callback_query" in update:
-                return update["callback_query"]["message"]["chat"]["id"]
-    return None
-
-def verify_bot(bot_token):
-    """التحقق من البوت"""
-    print(f"\n{CYAN}🔗 التحقق من البوت...{NC}")
-    init_bot(bot_token)
-    
-    bot_info = get_me()
-    if bot_info and bot_info.get("ok"):
-        bot_name = bot_info["result"]["username"]
-        success(f"البوت متصل: @{bot_name}")
-        return True
-    else:
-        error("فشل الاتصال بالبوت - تأكد من التوكن")
-        return False
-
-def get_auto_chat_id():
-    """الحصول على Chat ID تلقائياً"""
-    print(f"\n{YELLOW}⏳ جاري الحصول على Chat ID...{NC}")
-    warning("أرسل أي رسالة للبوت الآن!")
-    
-    for i in range(30):
-        chat_id = get_chat_id()
-        if chat_id:
-            success(f"Chat ID: {chat_id}")
-            return chat_id
-        print(f"\r{CYAN}جاري الانتظار... ({30-i}ث){NC}", end="")
-        sys.stdout.flush()
-        time.sleep(1)
-    
-    print()
-    error("لم يتم العثور على محادثة - أرسل رسالة للبوت أولاً")
-    return None
-
-# ============ التوليد ============
-def generate_words_fast(charset, pwd_length, max_words, output_file):
-    """توليد سريع جداً للكلمات"""
-    global counter, start_time, generating, stop_flag
-    
-    generating = True
-    counter = 0
-    start_time = time.time()
-    
-    try:
-        # استخدام write بكفاءة عالية
-        with open(output_file, "w", buffering=1024*1024) as f:
-            buffer = []
-            buffer_size = 100000
+    if command -v curl > /dev/null 2>&1; then
+        # فحص HTTPS
+        echo -e "${Y}[→] فحص HTTPS:${NC}"
+        HTTPS_CODE=$(curl -sk -o /dev/null -w "%{http_code}" --max-time "$TIMEOUT" "https://$TARGET_URL" 2>/dev/null)
+        
+        if [ "$HTTPS_CODE" != "000" ] && [ -n "$HTTPS_CODE" ]; then
+            echo -e "   ${G}✓ HTTPS متاح - رمز الحالة: $HTTPS_CODE${NC}"
             
-            for combo in itertools.product(charset, repeat=pwd_length):
-                if stop_flag or counter >= max_words:
-                    break
-                
-                buffer.append("".join(combo) + "\n")
-                counter += 1
-                
-                # كتابة كل 100 ألف كلمة
-                if len(buffer) >= buffer_size:
-                    f.writelines(buffer)
-                    buffer = []
-                
-                if counter % 500000 == 0:
-                    update_progress()
-            
-            # كتابة الباقي
-            if buffer:
-                f.writelines(buffer)
-    except Exception as e:
-        error(f"خطأ في التوليد: {e}")
-    finally:
-        generating = False
-
-def update_progress():
-    """تحديث شريط التقدم"""
-    global counter, start_time
-    
-    elapsed = time.time() - start_time
-    speed = int(counter / elapsed) if elapsed > 0 else 0
-    progress = (counter / MAX_WORDS * 100) if MAX_WORDS > 0 else 0
-    eta = int((MAX_WORDS - counter) / speed) if speed > 0 else 0
-    
-    bar_length = 30
-    filled = int(bar_length * counter / MAX_WORDS) if MAX_WORDS > 0 else 0
-    bar = "█" * filled + "░" * (bar_length - filled)
-    
-    sys.stdout.write(
-        f"\r{CYAN}[{bar}] {progress:6.2f}% | "
-        f"{counter:,}/{MAX_WORDS:,} | "
-        f"⚡ {speed:,}/ث | "
-        f"⏱️ {int(elapsed):,}ث{NC}"
-    )
-    sys.stdout.flush()
-
-# ============ البرنامج الرئيسي ============
-def main():
-    global MAX_WORDS
-    
-    # جمع الإعدادات
-    print("\n")
-    bot_token, chat_id = get_bot_config()
-    if not bot_token:
-        return
-    
-    pwd_length, charset, charset_name = get_password_settings()
-    
-    total_possible = len(charset) ** pwd_length
-    MAX_WORDS = get_limit_settings(total_possible)
-    
-    split_size = get_split_settings()
-    
-    show_summary(bot_token, chat_id or "تلقائي", pwd_length, charset_name, 
-                 total_possible, MAX_WORDS, split_size)
-    
-    # التأكيد
-    confirm = input(f"\n{WHITE}🚀 ابدأ التوليد والإرسال؟ (y/n): {NC}").strip().lower()
-    if confirm != 'y':
-        error("تم الإلغاء")
-        return
-    
-    clear_screen()
-    print_banner()
-    print_section_header("عملية التوليد", "5/5")
-    
-    # التحقق من البوت
-    if not verify_bot(bot_token):
-        return
-    
-    # الحصول على Chat ID
-    if not chat_id:
-        chat_id = get_auto_chat_id()
-        if not chat_id:
-            return
-    
-    # التوليد
-    output_file = f"wordlist_{pwd_length}_{int(time.time())}.txt"
-    print(f"\n{CYAN}📁 الملف: {BOLD}{output_file}{NC}\n")
-    
-    gen_thread = threading.Thread(
-        target=generate_words_fast,
-        args=(charset, pwd_length, MAX_WORDS, output_file)
-    )
-    gen_thread.start()
-    
-    while gen_thread.is_alive():
-        time.sleep(0.2)
-    
-    gen_thread.join()
-    
-    # معلومات الملف
-    elapsed = time.time() - start_time
-    speed = int(counter / elapsed) if elapsed > 0 else 0
-    file_size = os.path.getsize(output_file)
-    file_size_mb = file_size / (1024 * 1024)
-    
-    print("\n\n")
-    divider()
-    print(f"{BOLD}{GREEN}✅ اكتمل التوليد!{NC}")
-    divider()
-    print(f"  📊 عدد الكلمات: {BOLD}{counter:,}{NC}")
-    print(f"  📦 حجم الملف: {BOLD}{file_size_mb:.2f} MB{NC}")
-    print(f"  ⏱️  الوقت: {BOLD}{int(elapsed)} ثانية{NC}")
-    print(f"  ⚡ السرعة: {BOLD}{speed:,} كلمة/ثانية{NC}")
-    divider()
-    
-    # الإرسال
-    print(f"\n{CYAN}📤 جاري الإرسال للبوت...{NC}\n")
-    
-    if split_size > 0:
-        split_size_bytes = split_size * 1024 * 1024
-        part_num = 1
+            # جلب الترويسات
+            echo -e "   ${Y}الترويسات الرئيسية:${NC}"
+            curl -skI --max-time "$TIMEOUT" "https://$TARGET_URL" 2>/dev/null | head -8 | while read line; do
+                [ -n "$line" ] && echo -e "      ${C}• ${W}$line${NC}"
+            done
+        else
+            echo -e "   ${R}✗ HTTPS غير متاح${NC}"
+        fi
+        echo ""
         
-        with open(output_file, "r", buffering=1024*1024) as f:
-            while True:
-                lines = f.readlines(split_size_bytes // (pwd_length + 1))
-                if not lines:
-                    break
-                
-                part_file = f"{output_file}.part{part_num}"
-                with open(part_file, "w", buffering=1024*1024) as pf:
-                    pf.writelines(lines)
-                
-                part_size = os.path.getsize(part_file) / (1024 * 1024)
-                caption = (
-                    f"<b>📦 جزء {part_num}</b>\n"
-                    f"📊 الحجم: {part_size:.2f} MB\n"
-                    f"🔐 DMARFOT v4.0"
-                )
-                
-                print(f"{YELLOW}📤 إرسال الجزء {part_num} ({part_size:.2f} MB)...{NC}")
-                result = send_file(chat_id, part_file, caption)
-                
-                if result and result.get("ok"):
-                    success(f"تم إرسال الجزء {part_num}")
-                else:
-                    error(f"فشل إرسال الجزء {part_num}")
-                
-                os.remove(part_file)
-                part_num += 1
-    else:
-        caption = (
-            f"<b>✅ اكتمل توليد كلمات المرور</b>\n"
-            f"<code>{'─' * 30}</code>\n"
-            f"<b>📊 العدد:</b> <code>{counter:,}</code>\n"
-            f"<b>📏 الطول:</b> <code>{pwd_length}</code>\n"
-            f"<b>🔤 الحروف:</b> <code>{charset_name}</code>\n"
-            f"<b>📦 الحجم:</b> <code>{file_size_mb:.2f} MB</code>\n"
-            f"<b>⏱️  الوقت:</b> <code>{int(elapsed)}ث</code>\n"
-            f"<b>⚡ السرعة:</b> <code>{speed:,} كلمة/ث</code>\n"
-            f"<code>{'─' * 30}</code>\n"
-            f"<b>🚀 DMARFOT v4.0 PRO</b>"
-        )
+        # فحص HTTP
+        echo -e "${Y}[→] فحص HTTP:${NC}"
+        HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time "$TIMEOUT" "http://$TARGET_URL" 2>/dev/null)
         
-        print(f"{YELLOW}📤 إرسال الملف ({file_size_mb:.2f} MB)...{NC}")
-        result = send_file(chat_id, output_file, caption)
-        
-        if result and result.get("ok"):
-            success("تم إرسال الملف بنجاح!")
-        else:
-            error("فشل الإرسال")
-            warning(f"الملف محفوظ محلياً: {output_file}")
-    
-    # النهاية
-    print("\n")
-    divider()
-    print(f"{BOLD}{GREEN}🎉 تم بنجاح!{NC}")
-    divider()
-    print(f"📁 الملف: {BOLD}{output_file}{NC}\n")
+        if [ "$HTTP_CODE" != "000" ] && [ -n "$HTTP_CODE" ]; then
+            echo -e "   ${G}✓ HTTP متاح - رمز الحالة: $HTTP_CODE${NC}"
+        else
+            echo -e "   ${R}✗ HTTP غير متاح${NC}"
+        fi
+        echo ""
+    else
+        # استخدام wget كبديل
+        if command -v wget > /dev/null 2>&1; then
+            echo -e "${Y}[→] فحص بواسطة wget:${NC}"
+            wget --spider --timeout="$TIMEOUT" "https://$TARGET_URL" 2>&1 | grep -E "HTTP|Length" | head -5
+            echo ""
+        else
+            echo -e "${R}[!] لا يوجد curl أو wget متاح${NC}"
+            echo ""
+        fi
+    fi
+}
 
-if __name__ == "__main__":
-    try:
-        main()
-    except KeyboardInterrupt:
-        print(f"\n\n{RED}⛔ تم الإيقاف من قبل المستخدم{NC}\n")
-    except Exception as e:
-        error(f"خطأ: {e}")
+# ============ دالة فحص المنافذ ============
+check_ports() {
+    echo -e "${B}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${C}${BOLD}  [3] فحص المنافذ الشائعة${NC}"
+    echo -e "${B}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    
+    # حل النطاق إلى IP
+    IP_ADDR=""
+    if command -v dig > /dev/null 2>&1; then
+        IP_ADDR=$(dig +short A "$TARGET_URL" 2>/dev/null | head -1)
+    fi
+    
+    if [ -z "$IP_ADDR" ]; then
+        IP_ADDR="$TARGET_URL"
+    fi
+    
+    echo -e "${Y}[→] فحص المنافذ على: $IP_ADDR${NC}"
+    echo ""
+    
+    PORTS="21 22 25 53 80 110 143 443 465 587 993 995 3306 5432 8080 8443"
+    PORT_NAMES="FTP SSH SMTP DNS HTTP POP3 IMAP HTTPS SMTPS SMTP-Sub IMAPS POP3S MySQL PostgreSQL HTTP-Alt HTTPS-Alt"
+    
+    for PORT in $PORTS; do
+        NAME=$(echo "$PORT_NAMES" | cut -d' ' -f1)
+        PORT_NAMES=$(echo "$PORT_NAMES" | cut -d' ' -f2-)
+        
+        if command -v nc > /dev/null 2>&1; then
+            # استخدام netcat
+            if nc -z -w 3 "$IP_ADDR" "$PORT" 2>/dev/null; then
+                echo -e "   ${G}[✓] المنفذ $PORT ($NAME): مفتوح${NC}"
+            else
+                echo -e "   ${R}[✗] المنفذ $PORT ($NAME): مغلق${NC}"
+            fi
+        elif command -v bash > /dev/null 2>&1; then
+            # استخدام bash /dev/tcp
+            if timeout 3 bash -c "echo > /dev/tcp/$IP_ADDR/$PORT" 2>/dev/null; then
+                echo -e "   ${G}[✓] المنفذ $PORT ($NAME): مفتوح${NC}"
+            else
+                echo -e "   ${R}[✗] المنفذ $PORT ($NAME): مغلق${NC}"
+            fi
+        else
+            echo -e "   ${Y}[?] لا يمكن فحص المنفذ $PORT${NC}"
+        fi
+    done
+    echo ""
+}
+
+# ============ دالة فحص الأمان ============
+check_security() {
+    echo -e "${B}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${C}${BOLD}  [4] فحص ترويسات الأمان${NC}"
+    echo -e "${B}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    
+    if command -v curl > /dev/null 2>&1; then
+        HEADERS=$(curl -skI --max-time "$TIMEOUT" "https://$TARGET_URL" 2>/dev/null)
+        
+        # فحص كل ترويسة
+        check_header() {
+            HEADER_NAME="$1"
+            DISPLAY_NAME="$2"
+            if echo "$HEADERS" | grep -qi "^$HEADER_NAME:"; then
+                echo -e "   ${G}[✓] $DISPLAY_NAME: موجود${NC}"
+            else
+                echo -e "   ${R}[✗] $DISPLAY_NAME: غائب${NC}"
+            fi
+        }
+        
+        check_header "x-frame-options" "X-Frame-Options"
+        check_header "x-content-type-options" "X-Content-Type-Options"
+        check_header "strict-transport-security" "HSTS"
+        check_header "content-security-policy" "CSP"
+        check_header "referrer-policy" "Referrer-Policy"
+        check_header "permissions-policy" "Permissions-Policy"
+    else
+        echo -e "${R}[!] curl غير متاح لفحص الأمان${NC}"
+    fi
+    echo ""
+}
+
+# ============ دالة فحص التقنيات ============
+check_tech() {
+    echo -e "${B}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${C}${BOLD}  [5] فحص التقنيات المستخدمة${NC}"
+    echo -e "${B}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    
+    if command -v curl > /dev/null 2>&1; then
+        HEADERS=$(curl -skI --max-time "$TIMEOUT" "https://$TARGET_URL" 2>/dev/null)
+        
+        # استخراج معلومات الخادم
+        SERVER=$(echo "$HEADERS" | grep -i "^server:" | sed 's/^[Ss]erver: //' | tr -d '\r')
+        if [ -n "$SERVER" ]; then
+            echo -e "${Y}[→] الخادم:${W} $SERVER${NC}"
+        fi
+        
+        # استخراج X-Powered-By
+        POWERED=$(echo "$HEADERS" | grep -i "^x-powered-by:" | sed 's/^[Xx]-[Pp]owered-[Bb]y: //' | tr -d '\r')
+        if [ -n "$POWERED" ]; then
+            echo -e "${Y}[→] تقنية التشغيل:${W} $POWERED${NC}"
+        fi
+        
+        # فحص الملفات الشائعة
+        echo ""
+        echo -e "${Y}[→] فحص الملفات الشائعة:${NC}"
+        
+        check_file() {
+            FILE_PATH="$1"
+            FILE_NAME="$2"
+            CODE=$(curl -sk -o /dev/null -w "%{http_code}" --max-time 5 "https://$TARGET_URL/$FILE_PATH" 2>/dev/null)
+            if [ "$CODE" = "200" ]; then
+                echo -e "   ${G}[✓] $FILE_NAME: موجود${NC}"
+            else
+                echo -e "   ${R}[✗] $FILE_NAME: غير موجود${NC}"
+            fi
+        }
+        
+        check_file "robots.txt" "robots.txt"
+        check_file "sitemap.xml" "sitemap.xml"
+        check_file ".well-known/security.txt" "security.txt"
+    else
+        echo -e "${R}[!] curl غير متاح${NC}"
+    fi
+    echo ""
+}
+
+# ============ دالة توليد التقرير ============
+generate_report() {
+    REPORT_FILE="DMAR_Report_$(date +%Y%m%d_%H%M%S).txt"
+    
+    echo -e "${B}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${C}${BOLD}  [6] توليد التقرير${NC}"
+    echo -e "${B}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    
+    {
+        echo "============================================"
+        echo "DMAR - تقرير فحص شامل"
+        echo "============================================"
+        echo "الهدف: $TARGET_URL"
+        echo "التاريخ: $(date)"
+        echo ""
+        echo "--------------------------------------------"
+        echo "[1] معلومات DNS:"
+        echo "--------------------------------------------"
+        if command -v dig > /dev/null 2>&1; then
+            dig +short A "$TARGET_URL" 2>/dev/null
+            echo ""
+            dig +short NS "$TARGET_URL" 2>/dev/null
+        fi
+        echo ""
+        echo "--------------------------------------------"
+        echo "[2] حالة HTTP/HTTPS:"
+        echo "--------------------------------------------"
+        if command -v curl > /dev/null 2>&1; then
+            HTTPS_CODE=$(curl -sk -o /dev/null -w "%{http_code}" --max-time "$TIMEOUT" "https://$TARGET_URL" 2>/dev/null)
+            echo "HTTPS: $HTTPS_CODE"
+        fi
+        echo ""
+        echo "--------------------------------------------"
+        echo "[3] ترويسات الأمان:"
+        echo "--------------------------------------------"
+        if command -v curl > /dev/null 2>&1; then
+            curl -skI --max-time "$TIMEOUT" "https://$TARGET_URL" 2>/dev/null | grep -iE "^(x-frame-options|x-content-type-options|strict-transport-security|content-security-policy|referrer-policy|permissions-policy):" || echo "لا توجد ترويسات أمان"
+        fi
+        echo ""
+        echo "============================================"
+        echo "نهاية التقرير - DMAR v$VERSION"
+        echo "============================================"
+    } > "$REPORT_FILE"
+    
+    echo -e "${G}[✓] تم حفظ التقرير في: $REPORT_FILE${NC}"
+    echo ""
+}
+
+# ============ دالة الفحص الشامل ============
+full_scan() {
+    get_url
+    echo -e "${Y}[+] بدء الفحص الشامل على: $TARGET_URL${NC}"
+    echo ""
+    sleep 1
+    
+    check_dns
+    check_http
+    check_ports
+    check_security
+    check_tech
+    generate_report
+    
+    echo -e "${G}[✓] اكتمل الفحص الشامل${NC}"
+    echo ""
+    read -p "اضغط Enter للعودة..."
+    main_menu
+}
+
+# ============ دالة الفحص السريع ============
+quick_scan() {
+    get_url
+    echo -e "${Y}[+] بدء الفحص السريع...${NC}"
+    echo ""
+    sleep 1
+    
+    check_http
+    
+    echo -e "${G}[✓] اكتمل الفحص السريع${NC}"
+    echo ""
+    read -p "اضغط Enter للعودة..."
+    main_menu
+}
+
+# ============ القائمة الرئيسية ============
+main_menu() {
+    show_banner
+    echo -e "${Y}[${C}1${Y}] ${B}فحص شامل${NC}"
+    echo -e "${Y}[${C}2${Y}] ${B}فحص سريع (HTTP/HTTPS فقط)${NC}"
+    echo -e "${Y}[${C}3${Y}] ${B}فحص DNS فقط${NC}"
+    echo -e "${Y}[${C}4${Y}] ${B}فحص المنافذ فقط${NC}"
+    echo -e "${Y}[${C}5${Y}] ${B}معلومات الأداة${NC}"
+    echo -e "${Y}[${C}0${Y}] ${B}خروج${NC}"
+    echo ""
+    echo -e "${B}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    printf "${C}❯ اختر العملية: ${NC}"
+    read CHOICE
+    
+    case $CHOICE in
+        1)
+            full_scan
+            ;;
+        2)
+            quick_scan
+            ;;
+        3)
+            get_url
+            check_dns
+            read -p "اضغط Enter للعودة..."
+            main_menu
+            ;;
+        4)
+            get_url
+            check_ports
+            read -p "اضغط Enter للعودة..."
+            main_menu
+            ;;
+        5)
+            show_banner
+            echo -e "${B}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            echo -e "${C}${BOLD}  معلومات الأداة${NC}"
+            echo -e "${B}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            echo ""
+            echo -e "${Y}الأداة:${W} DMAR${NC}"
+            echo -e "${Y}الإصدار:${W} $VERSION${NC}"
+            echo -e "${Y}المطور:${W} The Ghost${NC}"
+            echo -e "${Y}المميزات:${NC}"
+            echo -e "   ${G}• ${W}فحص DNS شامل${NC}"
+            echo -e "   ${G}• ${W}فحص HTTP/HTTPS${NC}"
+            echo -e "   ${G}• ${W}فحص المنافذ${NC}"
+            echo -e "   ${G}• ${W}فحص الأمان${NC}"
+            echo -e "   ${G}• ${W}فحص التقنيات${NC}"
+            echo -e "   ${G}• ${W}توليد تقرير${NC}"
+            echo ""
+            read -p "اضغط Enter للعودة..."
+            main_menu
+            ;;
+        0)
+            clear
+            echo -e "${G}${BOLD}شكراً لاستخدامك DMAR${NC}"
+            exit 0
+            ;;
+        *)
+            echo -e "${R}[!] اختيار غير صالح${NC}"
+            sleep 1
+            main_menu
+            ;;
+    esac
+}
+
+# ============ التشغيل ============
+install_deps
+main_menu
