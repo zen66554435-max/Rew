@@ -7,6 +7,7 @@ import os
 import time
 import threading
 import requests
+import sys
 
 # ============ الألوان ============
 GREEN = '\033[0;32m'
@@ -26,9 +27,9 @@ def clear_screen():
     os.system('clear' if os.name != 'nt' else 'cls')
 
 def print_banner():
-    print(f"""
-{CYAN}╔══════════════════════════════════════════════╗
-║      🔐 DMARFOT Wordlist Generator v2.0        ║
+    print(f"""{CYAN}
+╔══════════════════════════════════════════════╗
+║      🔐 DMARFOT Wordlist Generator v3.0        ║
 ║         توليد كلمات المرور وإرسالها للبوت      ║
 ╚══════════════════════════════════════════════╝{NC}
     """)
@@ -37,13 +38,13 @@ def print_banner():
 clear_screen()
 print_banner()
 
-print(f"{YELLOW}[1/3] إعدادات البوت:{NC}")
+print(f"{YELLOW}[1/4] إعدادات البوت:{NC}")
 print("-" * 45)
 BOT_TOKEN = input(f"{WHITE}أدخل توكن البوت: {NC}").strip()
 CHAT_ID = input(f"{WHITE}أدخل Chat ID (أو اتركه فاضي للتلقائي): {NC}").strip()
 
 print("")
-print(f"{YELLOW}[2/3] إعدادات التوليد:{NC}")
+print(f"{YELLOW}[2/4] إعدادات التوليد:{NC}")
 print("-" * 45)
 
 while True:
@@ -94,14 +95,48 @@ while True:
 TOTAL = len(CHARSET) ** PASSWORD_LENGTH
 
 print("")
-print(f"{YELLOW}[3/3] خيارات إضافية:{NC}")
+print(f"{YELLOW}[3/4] خيارات الحجم:{NC}")
 print("-" * 45)
 
-# حجم الملف التقديري
 est_size = TOTAL * (PASSWORD_LENGTH + 1) / (1024 * 1024)
-print(f"{CYAN}📊 الحجم المتوقع للملف: {est_size:.2f} MB{NC}")
+print(f"{CYAN}📊 الحجم المتوقع: {est_size:.2f} MB{NC}")
+print(f"{CYAN}📊 عدد الكلمات: {TOTAL:,}{NC}")
+
+print("")
+print(f"{CYAN}اختر الحد الأقصى لعدد الكلمات:{NC}")
+print("  1) 10 مليون")
+print("  2) 100 مليون")
+print("  3) 500 مليون")
+print("  4) 1 مليار")
+print("  5) الكل بدون حد")
+print("  6) عدد مخصص")
+
+while True:
+    limit_choice = input(f"{WHITE}اختيارك: {NC}").strip()
+    
+    if limit_choice == "1":
+        MAX_WORDS = 10_000_000
+        break
+    elif limit_choice == "2":
+        MAX_WORDS = 100_000_000
+        break
+    elif limit_choice == "3":
+        MAX_WORDS = 500_000_000
+        break
+    elif limit_choice == "4":
+        MAX_WORDS = 1_000_000_000
+        break
+    elif limit_choice == "5":
+        MAX_WORDS = TOTAL
+        break
+    elif limit_choice == "6":
+        MAX_WORDS = int(input(f"{WHITE}أدخل العدد: {NC}").strip())
+        break
+    else:
+        print(f"{RED}❌ خيار خاطئ{NC}")
 
 # تقسيم الملف
+print("")
 split_choice = input(f"{WHITE}تقسيم الملف لعدة أجزاء؟ (y/n): {NC}").strip().lower()
 if split_choice == 'y':
     SPLIT_SIZE = int(input(f"{WHITE}حجم كل جزء (MB): {NC}").strip())
@@ -109,18 +144,19 @@ else:
     SPLIT_SIZE = 0
 
 print("")
+print(f"{YELLOW}[4/4] ملخص:{NC}")
 print("=" * 45)
-print(f"{GREEN}📋 ملخص:{NC}")
-print(f"   🔑 التوكن: {BOT_TOKEN[:15]}...")
+print(f"{GREEN}   🔑 التوكن: {BOT_TOKEN[:15]}...{NC}")
 if CHAT_ID:
-    print(f"   🆔 Chat ID: {CHAT_ID}")
+    print(f"{GREEN}   🆔 Chat ID: {CHAT_ID}{NC}")
 else:
-    print(f"   🆔 Chat ID: تلقائي")
-print(f"   📏 الطول: {PASSWORD_LENGTH}")
-print(f"   🔤 الحروف: {CHARSET_NAME}")
-print(f"   📊 العدد: {TOTAL:,}")
+    print(f"{GREEN}   🆔 Chat ID: تلقائي{NC}")
+print(f"{GREEN}   📏 الطول: {PASSWORD_LENGTH}{NC}")
+print(f"{GREEN}   🔤 الحروف: {CHARSET_NAME}{NC}")
+print(f"{GREEN}   📊 العدد المتاح: {TOTAL:,}{NC}")
+print(f"{GREEN}   📊 العدد المطلوب: {MAX_WORDS:,}{NC}")
 if SPLIT_SIZE:
-    print(f"   📦 التقسيم: {SPLIT_SIZE} MB لكل جزء")
+    print(f"{GREEN}   📦 التقسيم: {SPLIT_SIZE} MB لكل جزء{NC}")
 print("=" * 45)
 print("")
 
@@ -144,7 +180,7 @@ def send_file(chat_id, file_path, caption=""):
     url = f"{BASE_URL}/sendDocument"
     try:
         with open(file_path, "rb") as f:
-            r = requests.post(url, data={"chat_id": chat_id, "caption": caption}, files={"document": f}, timeout=60)
+            r = requests.post(url, data={"chat_id": chat_id, "caption": caption}, files={"document": f}, timeout=120)
         return r.json()
     except:
         return None
@@ -168,7 +204,6 @@ def get_me():
         return None
 
 def get_chat_id():
-    # محاولة الحصول على chat_id من آخر رسالة
     updates = get_updates()
     if updates and updates.get("ok") and updates.get("result"):
         for update in reversed(updates["result"]):
@@ -212,17 +247,15 @@ def update_progress():
     
     elapsed = time.time() - start_time
     speed = int(counter / elapsed) if elapsed > 0 else 0
-    progress = (counter / TOTAL * 100) if TOTAL > 0 else 0
+    progress = (counter / MAX_WORDS * 100) if MAX_WORDS > 0 else 0
     
-    eta = int((TOTAL - counter) / speed) if speed > 0 else 0
+    eta = int((MAX_WORDS - counter) / speed) if speed > 0 else 0
     
-    sys_msg = f"\r{CYAN}📊 {counter:,}/{TOTAL:,} | ⚡ {speed:,}/ث | 📈 {progress:.2f}% | ⏱️ {int(elapsed)}ث | ⏳ متبقي: {eta}ث{NC}"
-    
-    sys.stdout.write(sys_msg)
+    sys.stdout.write(f"\r{CYAN}📊 {counter:,}/{MAX_WORDS:,} | ⚡ {speed:,}/ث | 📈 {progress:.2f}% | ⏱️ {int(elapsed)}ث | ⏳ متبقي: {eta}ث{NC}")
     sys.stdout.flush()
 
 def generate_words():
-    global counter, start_time, generating
+    global counter, start_time, generating, stop_flag
     
     generating = True
     counter = 0
@@ -230,13 +263,13 @@ def generate_words():
     
     with open(OUTPUT_FILE, "w") as f:
         for combo in itertools.product(CHARSET, repeat=PASSWORD_LENGTH):
-            if stop_flag:
+            if stop_flag or counter >= MAX_WORDS:
                 break
             
             f.write("".join(combo) + "\n")
             counter += 1
             
-            if counter % 50000 == 0:
+            if counter % 100000 == 0:
                 update_progress()
     
     generating = False
@@ -246,15 +279,14 @@ print(f"{GREEN}🔑 بدء التوليد...{NC}")
 print(f"{CYAN}📁 الملف: {OUTPUT_FILE}{NC}")
 print("")
 
-# تشغيل التوليد في خيط منفصل
+# تشغيل التوليد
 gen_thread = threading.Thread(target=generate_words)
 gen_thread.start()
 
-# مراقبة
 while gen_thread.is_alive():
-    if counter % 50000 != 0:
-        time.sleep(0.1)
     time.sleep(0.5)
+
+gen_thread.join()
 
 elapsed = time.time() - start_time
 speed = int(counter / elapsed) if elapsed > 0 else 0
@@ -263,21 +295,20 @@ file_size_mb = file_size / (1024 * 1024)
 
 print("")
 print("")
-print(f"{GREEN}=" * 45)
-print(f"✅ اكتمل التوليد!")
-print(f"-" * 45)
-print(f"   📊 العدد: {counter:,}")
-print(f"   📦 الحجم: {file_size_mb:.2f} MB")
-print(f"   ⏱️ الوقت: {int(elapsed)} ثانية")
-print(f"   ⚡ السرعة: {speed:,} كلمة/ثانية")
-print(f"=" * 45{NC}")
+print(f"{GREEN}" + "=" * 45)
+print(f"{GREEN}✅ اكتمل التوليد!")
+print(f"{GREEN}" + "-" * 45)
+print(f"{GREEN}   📊 العدد: {counter:,}")
+print(f"{GREEN}   📦 الحجم: {file_size_mb:.2f} MB")
+print(f"{GREEN}   ⏱️ الوقت: {int(elapsed)} ثانية")
+print(f"{GREEN}   ⚡ السرعة: {speed:,} كلمة/ثانية")
+print(f"{GREEN}" + "=" * 45 + f"{NC}")
 print("")
 
 # ============ الإرسال ============
 print(f"{CYAN}📤 جاري الإرسال إلى البوت...{NC}")
 
 if SPLIT_SIZE > 0:
-    # تقسيم الملف
     split_size_bytes = SPLIT_SIZE * 1024 * 1024
     part_num = 1
     
@@ -292,7 +323,7 @@ if SPLIT_SIZE > 0:
                 pf.writelines(lines)
             
             part_size = os.path.getsize(part_file) / (1024 * 1024)
-            caption = f"📦 جزء {part_num} | الحجم: {part_size:.2f} MB"
+            caption = f"📦 <b>جزء {part_num}</b>\n📊 الحجم: {part_size:.2f} MB"
             
             print(f"{YELLOW}📤 إرسال الجزء {part_num}...{NC}")
             result = send_file(CHAT_ID, part_file, caption)
@@ -300,28 +331,29 @@ if SPLIT_SIZE > 0:
             if result and result.get("ok"):
                 print(f"{GREEN}✅ تم إرسال الجزء {part_num}{NC}")
             else:
-                print(f"{RED}❌ فشل إرسال الجزء {part_num}: {result}{NC}")
+                print(f"{RED}❌ فشل إرسال الجزء {part_num}{NC}")
             
             os.remove(part_file)
             part_num += 1
 else:
-    # إرسال كامل
-    caption = f"""
-✅ <b>اكتمل التوليد</b>
-
-📊 <b>العدد:</b> {counter:,}
-📏 <b>الطول:</b> {PASSWORD_LENGTH}
-🔤 <b>الحروف:</b> {CHARSET_NAME}
-📦 <b>الحجم:</b> {file_size_mb:.2f} MB
-⏱️ <b>الوقت:</b> {int(elapsed)} ثانية
-⚡ <b>السرعة:</b> {speed:,}/ثانية
-"""
+    caption = (
+        f"✅ <b>اكتمل توليد كلمات المرور</b>\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"📊 <b>العدد:</b> {counter:,}\n"
+        f"📏 <b>الطول:</b> {PASSWORD_LENGTH}\n"
+        f"🔤 <b>الحروف:</b> {CHARSET_NAME}\n"
+        f"📦 <b>الحجم:</b> {file_size_mb:.2f} MB\n"
+        f"⏱️ <b>الوقت:</b> {int(elapsed)} ثانية\n"
+        f"⚡ <b>السرعة:</b> {speed:,} كلمة/ثانية\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"🔐 <b>DMARFOT v3.0</b>"
+    )
     
     result = send_file(CHAT_ID, OUTPUT_FILE, caption)
     if result and result.get("ok"):
         print(f"{GREEN}✅ تم إرسال الملف بنجاح!{NC}")
     else:
-        print(f"{RED}❌ فشل الإرسال: {result}{NC}")
+        print(f"{RED}❌ فشل الإرسال{NC}")
         print(f"{YELLOW}💡 الملف محفوظ محلياً: {OUTPUT_FILE}{NC}")
 
 print("")
